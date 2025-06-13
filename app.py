@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import json
 from agent import build_agent
 from datetime import datetime
 
@@ -151,16 +152,46 @@ with chat_container:
                 </div>
                 """, unsafe_allow_html=True)
             else:
-                st.markdown(f"""
-                <div class="chat-message bot">
-                    <div class="avatar">🏀</div>
-                    <div class="message">
-                        <strong>NBA Agent:</strong><br>
-                        {message["content"]}
-                        <br><small>{message.get("timestamp", "")}</small>
+                content = message["content"]
+                try:
+                    data = json.loads(content)
+                except Exception:
+                    data = None
+                if isinstance(data, dict) and "stats" in data:
+                    st.markdown(f"""
+                    <div class="chat-message bot">
+                        <div class="avatar">🏀</div>
+                        <div class="message">
+                            <strong>NBA Agent:</strong><br>
+                            {data.get('player', '')} {data.get('season', '')} Stats
+                            <br><small>{message.get('timestamp', '')}</small>
+                        </div>
                     </div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
+                    st.table(data["stats"])
+                    st.bar_chart(data["stats"])
+                elif isinstance(data, dict) and "wins" in data and "losses" in data:
+                    st.markdown(f"""
+                    <div class="chat-message bot">
+                        <div class="avatar">🏀</div>
+                        <div class="message">
+                            <strong>NBA Agent:</strong><br>
+                            {data['team']} - {data['wins']}W/{data['losses']}L (Rank {data.get('rank','')})
+                            <br><small>{message.get('timestamp','')}</small>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="chat-message bot">
+                        <div class="avatar">🏀</div>
+                        <div class="message">
+                            <strong>NBA Agent:</strong><br>
+                            {content}
+                            <br><small>{message.get("timestamp", "")}</small>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
 # Chat input
 st.markdown("---")
