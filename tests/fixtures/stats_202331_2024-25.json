@@ -1,0 +1,13 @@
+{
+  "overall_player_dashboard": [
+    {
+      "PLAYER_ID": "202331",
+      "PLAYER_NAME": "Paul George",
+      "PTS": 23,
+      "AST": 5,
+      "REB": 6,
+      "STL": 1.5,
+      "BLK": 0.5
+    }
+  ]
+}

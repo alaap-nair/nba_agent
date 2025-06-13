@@ -64,3 +64,40 @@ def test_standings_tool():
     assert data['team'].startswith('Golden')
     assert 'wins' in data
 
+
+def test_new_player_stats():
+    tool = StatsTool()
+    result = json.loads(tool._run('Shai 2024-25'))
+    assert result['player'].startswith('Shai')
+    assert 'ppg' in result['stats']
+
+
+def test_stats_tool_remote(monkeypatch):
+    tool = StatsTool()
+
+    def fake_load(name):
+        raise FileNotFoundError
+
+    def fake_fetch(player, season):
+        return {
+            "overall_player_dashboard": [
+                {
+                    "PLAYER_ID": "999",
+                    "PLAYER_NAME": player.title(),
+                    "PTS": 22,
+                    "AST": 5,
+                    "REB": 6,
+                    "STL": 1,
+                    "BLK": 1,
+                }
+            ]
+        }
+
+    monkeypatch.setattr('tools._load_fixture', fake_load)
+    monkeypatch.setattr('tools._fetch_remote_stats', fake_fetch)
+    monkeypatch.setattr('tools._lookup_id', lambda p: '999')
+
+    result = json.loads(tool._run('Remote Guy 2024-25'))
+    assert result['player'].startswith('Remote Guy'.split()[0])
+    assert result['stats']['ppg'] == 22
+
