@@ -30,7 +30,7 @@ if 'requests' not in sys.modules:
     sys.modules['requests'] = requests
 
 from tools import StatsTool, ScheduleTool, StandingsTool, _lookup_id
-from cache import _path_for_key
+from cache import _path_for_key, _memory_cache
 
 
 def test_stats_tool_uses_fixture_and_cache(tmp_path, monkeypatch):
@@ -74,6 +74,12 @@ def test_new_player_stats():
 
 def test_stats_tool_remote(monkeypatch):
     tool = StatsTool()
+    key = "stats_1000_2024-25"
+    cache_file = _path_for_key(key)
+    if cache_file.exists():
+        cache_file.unlink()
+    if key in _memory_cache:
+        del _memory_cache[key]
 
     def fake_load(name):
         raise FileNotFoundError
@@ -82,7 +88,7 @@ def test_stats_tool_remote(monkeypatch):
         return {
             "overall_player_dashboard": [
                 {
-                    "PLAYER_ID": "999",
+                    "PLAYER_ID": "1000",
                     "PLAYER_NAME": player.title(),
                     "PTS": 22,
                     "AST": 5,
@@ -95,9 +101,47 @@ def test_stats_tool_remote(monkeypatch):
 
     monkeypatch.setattr('tools._load_fixture', fake_load)
     monkeypatch.setattr('tools._fetch_remote_stats', fake_fetch)
-    monkeypatch.setattr('tools._lookup_id', lambda p: '999')
+    monkeypatch.setattr('tools._lookup_id', lambda p: '1000')
 
     result = json.loads(tool._run('Remote Guy 2024-25'))
     assert result['player'].startswith('Remote Guy'.split()[0])
     assert result['stats']['ppg'] == 22
+
+
+def test_stats_tool_fg_pct(monkeypatch):
+    tool = StatsTool()
+    key = "stats_1000_2024-25"
+    cache_file = _path_for_key(key)
+    if cache_file.exists():
+        cache_file.unlink()
+    if key in _memory_cache:
+        del _memory_cache[key]
+
+    def fake_load(name):
+        raise FileNotFoundError
+
+    def fake_fetch(player, season):
+        return {
+            "overall_player_dashboard": [
+                {
+                    "PLAYER_ID": "1000",
+                    "PLAYER_NAME": player.title(),
+                    "PTS": 30,
+                    "AST": 5,
+                    "REB": 7,
+                    "STL": 2,
+                    "BLK": 1,
+                    "FG_PCT": 0.55,
+                    "FG3_PCT": 0.4,
+                    "FT_PCT": 0.85,
+                }
+            ]
+        }
+
+    monkeypatch.setattr('tools._load_fixture', fake_load)
+    monkeypatch.setattr('tools._fetch_remote_stats', fake_fetch)
+    monkeypatch.setattr('tools._lookup_id', lambda p: '1000')
+
+    result = json.loads(tool._run('Remote Guy fg% 2024-25'))
+    assert result['stats']['fg_pct'] == 0.55
 
