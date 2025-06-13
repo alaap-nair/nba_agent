@@ -5,7 +5,7 @@ A small LangChain-based assistant for checking NBA stats and schedules.
 ## Features
 - **Command-line chat** via `chat.py`.
 - **Streamlit web app** using `app.py`.
-- Tools for player stats and team schedules located in `tools.py`.
+- Tools for player stats and team schedules located in `tools.py`. The stats tool now also exposes shooting percentages (FG%, 3P%, FT%) when available.
 - Local caching of API requests under `cache.py`.
 
 ## Usage

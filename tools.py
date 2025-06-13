@@ -43,6 +43,9 @@ def _fetch_remote_stats(player: str, season: str) -> Dict | None:
                     "REB": s.get("reb"),
                     "STL": s.get("stl"),
                     "BLK": s.get("blk"),
+                    "FG_PCT": s.get("fg_pct"),
+                    "FG3_PCT": s.get("fg3_pct"),
+                    "FT_PCT": s.get("ft_pct"),
                 }
             ]
         }
@@ -88,6 +91,14 @@ class StatsTool(BaseTool):
                     "ppg",
                     "apg",
                     "rpg",
+                    "fg%",
+                    "fg_pct",
+                    "fg3%",
+                    "fg3_pct",
+                    "3p%",
+                    "3p_pct",
+                    "ft%",
+                    "ft_pct",
                 ]:
                     player = " ".join(parts[:i])
                     stat_type = part
@@ -136,6 +147,9 @@ class StatsTool(BaseTool):
             "rpg": stats.get("REB"),
             "spg": stats.get("STL"),
             "bpg": stats.get("BLK"),
+            "fg_pct": stats.get("FG_PCT"),
+            "fg3_pct": stats.get("FG3_PCT"),
+            "ft_pct": stats.get("FT_PCT"),
         }
 
         if stat_type in ["assists", "apg"]:
@@ -148,6 +162,12 @@ class StatsTool(BaseTool):
             result_stats = {"spg": all_stats["spg"]}
         elif stat_type in ["blocks", "bpg"]:
             result_stats = {"bpg": all_stats["bpg"]}
+        elif stat_type in ["fg%", "fg_pct"]:
+            result_stats = {"fg_pct": all_stats["fg_pct"]}
+        elif stat_type in ["fg3%", "fg3_pct", "3p%", "3p_pct"]:
+            result_stats = {"fg3_pct": all_stats["fg3_pct"]}
+        elif stat_type in ["ft%", "ft_pct"]:
+            result_stats = {"ft_pct": all_stats["ft_pct"]}
         else:
             result_stats = all_stats
 
