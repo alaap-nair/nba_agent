@@ -34,6 +34,7 @@ from tools import (
     ScheduleTool,
     StandingsTool,
     RosterTool,
+    InjuryTool,
     _lookup_id,
     _lookup_team_id,
 )
@@ -77,6 +78,20 @@ def test_roster_tool():
     data = json.loads(tool._run('Warriors'))
     assert data['team'].startswith('Warriors') or data['team'].startswith('Golden')
     assert any('Curry' in p for p in data['roster'])
+    assert cache_file.exists()
+
+
+def test_injury_tool():
+    tool = InjuryTool()
+    key = f"injuries_{_lookup_team_id('Warriors')}"
+    cache_file = _path_for_key(key)
+    if cache_file.exists():
+        cache_file.unlink()
+    if key in _memory_cache:
+        del _memory_cache[key]
+
+    data = json.loads(tool._run('Warriors'))
+    assert any('Payton' in i or 'Wiggins' in i for i in data['injuries'])
     assert cache_file.exists()
 
 

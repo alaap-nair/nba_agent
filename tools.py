@@ -259,6 +259,31 @@ class RosterTool(BaseTool):
         return json.dumps({"team": team.title(), "roster": players})
 
 
+class InjuryTool(BaseTool):
+    name: str = "nba_injuries"
+    description: str = (
+        "Return the current injury report for a team. Input should be the team name."
+    )
+
+    def _run(self, team: str) -> str:
+        team_id = _lookup_team_id(team)
+        key = f"injuries_{team_id}"
+        data = cache_get(key)
+        if data is None:
+            try:
+                data = _load_fixture(f"{key}.json")
+            except FileNotFoundError:
+                url = f"https://www.balldontlie.io/api/v1/injuries?team_ids[]={team_id}"
+                try:
+                    data = requests.get(url).json()
+                except Exception:
+                    return json.dumps({"error": f"No injury data for {team}"})
+            cache_set(key, data)
+
+        injuries = [f"{p.get('player')} - {p.get('status')}" for p in data.get('data', [])]
+        return json.dumps({"team": team.title(), "injuries": injuries})
+
+
 def _lookup_id(player: str) -> str:
     player_ids = {
         "lebron": "2544",

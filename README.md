@@ -7,6 +7,7 @@ A small LangChain-based assistant for checking NBA stats and schedules.
 - **Streamlit web app** using `app.py`.
 - Tools for player stats, team schedules, and standings located in `tools.py`.
 - **New:** Team roster lookup via the `nba_roster` tool.
+- **New:** Team injury reports via the `nba_injuries` tool.
 - The stats tool now also exposes shooting percentages (FG%, 3P%, FT%) when available.
 - Local caching of API requests under `cache.py`.
 
