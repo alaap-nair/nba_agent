@@ -233,6 +233,56 @@ class StandingsTool(BaseTool):
         })
 
 
+class RosterTool(BaseTool):
+    name: str = "nba_roster"
+    description: str = "Return the current roster for a team. Input should be the team name."
+
+    def _run(self, team: str) -> str:
+        team_id = _lookup_team_id(team)
+        key = f"roster_{team_id}"
+        data = cache_get(key)
+        if data is None:
+            try:
+                data = _load_fixture(f"{key}.json")
+            except FileNotFoundError:
+                url = f"https://www.balldontlie.io/api/v1/players?team_ids[]={team_id}&per_page=100"
+                try:
+                    data = requests.get(url).json()
+                except Exception:
+                    return json.dumps({"error": f"No roster data for {team}"})
+            cache_set(key, data)
+
+        players = [f"{p.get('first_name','')} {p.get('last_name','')}".strip() for p in data.get("data", [])]
+        if not players:
+            return json.dumps({"error": f"No roster for {team}"})
+
+        return json.dumps({"team": team.title(), "roster": players})
+
+
+class ArenaTool(BaseTool):
+    name: str = "nba_arena"
+    description: str = "Return the home arena for a team. Input should be the team name."
+
+    def _run(self, team: str) -> str:
+        team_id = _lookup_team_id(team)
+        key = f"arena_{team_id}"
+        data = cache_get(key)
+        if data is None:
+            try:
+                data = _load_fixture(f"{key}.json")
+            except FileNotFoundError:
+                arenas = {
+                    "5": {"team": "Golden State Warriors", "arena": "Chase Center"},
+                    "14": {"team": "Los Angeles Lakers", "arena": "Crypto.com Arena"},
+                }
+                data = arenas.get(team_id)
+                if data is None:
+                    return json.dumps({"error": f"No arena for {team}"})
+            cache_set(key, data)
+
+        return json.dumps({"team": data.get("team", team.title()), "arena": data.get("arena")})
+
+
 def _lookup_id(player: str) -> str:
     player_ids = {
         "lebron": "2544",
