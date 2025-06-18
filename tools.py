@@ -259,6 +259,30 @@ class RosterTool(BaseTool):
         return json.dumps({"team": team.title(), "roster": players})
 
 
+class ArenaTool(BaseTool):
+    name: str = "nba_arena"
+    description: str = "Return the home arena for a team. Input should be the team name."
+
+    def _run(self, team: str) -> str:
+        team_id = _lookup_team_id(team)
+        key = f"arena_{team_id}"
+        data = cache_get(key)
+        if data is None:
+            try:
+                data = _load_fixture(f"{key}.json")
+            except FileNotFoundError:
+                arenas = {
+                    "5": {"team": "Golden State Warriors", "arena": "Chase Center"},
+                    "14": {"team": "Los Angeles Lakers", "arena": "Crypto.com Arena"},
+                }
+                data = arenas.get(team_id)
+                if data is None:
+                    return json.dumps({"error": f"No arena for {team}"})
+            cache_set(key, data)
+
+        return json.dumps({"team": data.get("team", team.title()), "arena": data.get("arena")})
+
+
 def _lookup_id(player: str) -> str:
     player_ids = {
         "lebron": "2544",

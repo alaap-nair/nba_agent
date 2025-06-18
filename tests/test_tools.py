@@ -34,6 +34,7 @@ from tools import (
     ScheduleTool,
     StandingsTool,
     RosterTool,
+    ArenaTool,
     _lookup_id,
     _lookup_team_id,
 )
@@ -79,6 +80,20 @@ def test_roster_tool():
     assert any('Curry' in p for p in data['roster'])
     assert cache_file.exists()
 
+
+def test_arena_tool():
+    tool = ArenaTool()
+    key = f"arena_{_lookup_team_id('Warriors')}"
+    cache_file = _path_for_key(key)
+    if cache_file.exists():
+        cache_file.unlink()
+    if key in _memory_cache:
+        del _memory_cache[key]
+
+    data = json.loads(tool._run('Warriors'))
+    assert data['team'].startswith('Golden')
+    assert 'arena' in data
+    assert cache_file.exists()
 
 def test_standings_tool():
     tool = StandingsTool()
