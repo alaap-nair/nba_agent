@@ -65,6 +65,24 @@ class StatsTool(BaseTool):
         player = ""
         stat_type = "all"
         season = "2024-25"
+        stat_keywords = [
+            "points",
+            "assists",
+            "rebounds",
+            "steals",
+            "blocks",
+            "ppg",
+            "apg",
+            "rpg",
+            "fg%",
+            "fg_pct",
+            "fg3%",
+            "fg3_pct",
+            "3p%",
+            "3p_pct",
+            "ft%",
+            "ft_pct",
+        ]
 
         if len(parts) == 1:
             player = parts[0]
@@ -79,27 +97,15 @@ class StatsTool(BaseTool):
             for i, part in enumerate(parts):
                 if part in ["2023-24", "2024-25", "2022-23"]:
                     season = part
-                    player = " ".join(parts[: i - 1]) if i > 1 else parts[0]
-                    stat_type = parts[i - 1] if i > 1 else "all"
+                    # if a stat follows the season, use it
+                    if i + 1 < len(parts) and parts[i + 1] in stat_keywords:
+                        player = " ".join(parts[:i])
+                        stat_type = parts[i + 1]
+                    else:
+                        player = " ".join(parts[: i - 1]) if i > 1 else parts[0]
+                        stat_type = parts[i - 1] if i > 1 else "all"
                     break
-                elif part in [
-                    "points",
-                    "assists",
-                    "rebounds",
-                    "steals",
-                    "blocks",
-                    "ppg",
-                    "apg",
-                    "rpg",
-                    "fg%",
-                    "fg_pct",
-                    "fg3%",
-                    "fg3_pct",
-                    "3p%",
-                    "3p_pct",
-                    "ft%",
-                    "ft_pct",
-                ]:
+                elif part in stat_keywords:
                     player = " ".join(parts[:i])
                     stat_type = part
                     if i + 1 < len(parts):

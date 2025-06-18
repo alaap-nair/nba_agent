@@ -108,6 +108,12 @@ def test_new_player_stats():
     assert result['player'].startswith('Shai')
     assert 'ppg' in result['stats']
 
+def test_player_season_stat_order():
+    tool = StatsTool()
+    result = json.loads(tool._run('LeBron 2024-25 points'))
+    assert result['player'] == 'Lebron'
+    assert list(result['stats'].keys()) == ['ppg']
+
 
 def test_stats_tool_remote(monkeypatch):
     tool = StatsTool()
