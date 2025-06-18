@@ -95,7 +95,6 @@ def test_arena_tool():
     assert 'arena' in data
     assert cache_file.exists()
 
-
 def test_standings_tool():
     tool = StandingsTool()
     data = json.loads(tool._run('Warriors'))
