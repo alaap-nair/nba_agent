@@ -2,14 +2,14 @@
 import os
 from langchain.agents import initialize_agent, AgentType
 from langchain_openai import ChatOpenAI
-from tools import StatsTool, ScheduleTool, StandingsTool
+from tools import StatsTool, ScheduleTool, StandingsTool, RosterTool, ArenaTool
 
 def build_agent():
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     
     # Initialize agent without tracer if Judgment credentials are missing
     agent_kwargs = {
-        "tools": [StatsTool(), ScheduleTool(), StandingsTool()],
+        "tools": [StatsTool(), ScheduleTool(), StandingsTool(), RosterTool(), ArenaTool()],
         "llm": llm,
         "agent": AgentType.CHAT_ZERO_SHOT_REACT_DESCRIPTION,
         "verbose": True,  # Enable verbose mode to see what's happening

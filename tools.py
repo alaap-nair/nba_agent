@@ -65,6 +65,24 @@ class StatsTool(BaseTool):
         player = ""
         stat_type = "all"
         season = "2024-25"
+        stat_keywords = [
+            "points",
+            "assists",
+            "rebounds",
+            "steals",
+            "blocks",
+            "ppg",
+            "apg",
+            "rpg",
+            "fg%",
+            "fg_pct",
+            "fg3%",
+            "fg3_pct",
+            "3p%",
+            "3p_pct",
+            "ft%",
+            "ft_pct",
+        ]
 
         if len(parts) == 1:
             player = parts[0]
@@ -79,27 +97,15 @@ class StatsTool(BaseTool):
             for i, part in enumerate(parts):
                 if part in ["2023-24", "2024-25", "2022-23"]:
                     season = part
-                    player = " ".join(parts[: i - 1]) if i > 1 else parts[0]
-                    stat_type = parts[i - 1] if i > 1 else "all"
+                    # if a stat follows the season, use it
+                    if i + 1 < len(parts) and parts[i + 1] in stat_keywords:
+                        player = " ".join(parts[:i])
+                        stat_type = parts[i + 1]
+                    else:
+                        player = " ".join(parts[: i - 1]) if i > 1 else parts[0]
+                        stat_type = parts[i - 1] if i > 1 else "all"
                     break
-                elif part in [
-                    "points",
-                    "assists",
-                    "rebounds",
-                    "steals",
-                    "blocks",
-                    "ppg",
-                    "apg",
-                    "rpg",
-                    "fg%",
-                    "fg_pct",
-                    "fg3%",
-                    "fg3_pct",
-                    "3p%",
-                    "3p_pct",
-                    "ft%",
-                    "ft_pct",
-                ]:
+                elif part in stat_keywords:
                     player = " ".join(parts[:i])
                     stat_type = part
                     if i + 1 < len(parts):
@@ -231,6 +237,56 @@ class StandingsTool(BaseTool):
             "losses": entry["losses"],
             "rank": entry.get("rank")
         })
+
+
+class RosterTool(BaseTool):
+    name: str = "nba_roster"
+    description: str = "Return the current roster for a team. Input should be the team name."
+
+    def _run(self, team: str) -> str:
+        team_id = _lookup_team_id(team)
+        key = f"roster_{team_id}"
+        data = cache_get(key)
+        if data is None:
+            try:
+                data = _load_fixture(f"{key}.json")
+            except FileNotFoundError:
+                url = f"https://www.balldontlie.io/api/v1/players?team_ids[]={team_id}&per_page=100"
+                try:
+                    data = requests.get(url).json()
+                except Exception:
+                    return json.dumps({"error": f"No roster data for {team}"})
+            cache_set(key, data)
+
+        players = [f"{p.get('first_name','')} {p.get('last_name','')}".strip() for p in data.get("data", [])]
+        if not players:
+            return json.dumps({"error": f"No roster for {team}"})
+
+        return json.dumps({"team": team.title(), "roster": players})
+
+
+class ArenaTool(BaseTool):
+    name: str = "nba_arena"
+    description: str = "Return the home arena for a team. Input should be the team name."
+
+    def _run(self, team: str) -> str:
+        team_id = _lookup_team_id(team)
+        key = f"arena_{team_id}"
+        data = cache_get(key)
+        if data is None:
+            try:
+                data = _load_fixture(f"{key}.json")
+            except FileNotFoundError:
+                arenas = {
+                    "5": {"team": "Golden State Warriors", "arena": "Chase Center"},
+                    "14": {"team": "Los Angeles Lakers", "arena": "Crypto.com Arena"},
+                }
+                data = arenas.get(team_id)
+                if data is None:
+                    return json.dumps({"error": f"No arena for {team}"})
+            cache_set(key, data)
+
+        return json.dumps({"team": data.get("team", team.title()), "arena": data.get("arena")})
 
 
 def _lookup_id(player: str) -> str:
