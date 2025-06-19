@@ -23,7 +23,7 @@ def build_agent():
     try:
         from judgeval.common.tracer import Tracer
         if os.getenv("JUDGMENT_API_KEY"):
-            tracer = Tracer(project_name="nba_agent")
+            tracer = Tracer(project_name="nba_agent", deep_tracing=False)
             agent_kwargs["tracer"] = tracer
             print("✅ Judgment tracing enabled")
         else:

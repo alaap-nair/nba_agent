@@ -6,7 +6,7 @@ Updated NBA Tools using real-time nba_api data
 import json
 from langchain.tools import BaseTool
 from typing import Dict
-from nba_api.stats.endpoints import playercareerstats, commonteamroster, leaguestandings
+from nba_api.stats.endpoints import playercareerstats, teamroster, leaguestandings
 from nba_api.stats.endpoints import scoreboardv2, teamgamelog
 from nba_api.stats.static import players, teams
 from nba_api.live.nba.endpoints import scoreboard
@@ -141,15 +141,15 @@ class StatsTool(BaseTool):
         
         # Filter by specific stat if requested
         if stat_type in ["assists", "apg"]:
-            result_stats = {"apg": stats.get("apg", 0)}
+            result_stats = {"apg": stats["apg"]}
         elif stat_type in ["points", "ppg"]:
-            result_stats = {"ppg": stats.get("ppg", 0)}
+            result_stats = {"ppg": stats["ppg"]}
         elif stat_type in ["rebounds", "rpg"]:
-            result_stats = {"rpg": stats.get("rpg", 0)}
+            result_stats = {"rpg": stats["rpg"]}
         elif stat_type in ["steals", "spg"]:
-            result_stats = {"spg": stats.get("spg", 0)}
+            result_stats = {"spg": stats["spg"]}
         elif stat_type in ["blocks", "bpg"]:
-            result_stats = {"bpg": stats.get("bpg", 0)}
+            result_stats = {"bpg": stats["bpg"]}
         else:
             result_stats = stats
         
@@ -263,7 +263,7 @@ class RosterTool(BaseTool):
             return json.dumps(cached_data)
         
         try:
-            roster = commonteamroster.CommonTeamRoster(team_id=team_info['id'])
+            roster = teamroster.TeamRoster(team_id=team_info['id'])
             df = roster.get_data_frames()[0]
             
             player_names = df['PLAYER'].tolist()
