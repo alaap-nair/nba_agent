@@ -4,6 +4,9 @@ Interactive NBA Agent Chat
 Run this to chat with your NBA agent!
 """
 
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 from agent import build_agent
 
 def main():

@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import json
 import time
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 from datetime import datetime
 from agent import build_agent
 
