@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 """
 Updated NBA Tools using real-time nba_api data
+Enhanced with structured logging, input validation, and proper error handling
 """
 
 import json
+import time
 from langchain.tools import BaseTool
-from typing import Dict
+from typing import Dict, Optional
 from nba_api.stats.endpoints import playercareerstats, commonteamroster, leaguestandings
 from nba_api.stats.endpoints import scoreboardv2, teamgamelog
 from nba_api.stats.static import players, teams
 from nba_api.live.nba.endpoints import scoreboard
 from cache import get as cache_get, set as cache_set
 import datetime
+
+# Import our new modules
+from logger import get_logger, log_performance, log_api_call, log_error_with_context
+from validation import InputValidator, ResponseValidator, ValidationError, safe_validate_input
+
+# Initialize logger
+logger = get_logger(__name__)
 
 
 def _find_player_by_name(name: str) -> Dict | None:
@@ -59,16 +68,88 @@ class StatsTool(BaseTool):
     )
 
     def _run(self, query: str) -> str:
-        parts = query.strip().split()
-        if not parts:
-            return json.dumps({"error": "Please provide a player name"})
+        start_time = time.time()
         
-        # Extract player name (could be multiple words)
+        try:
+            # Validate input query
+            query_result = InputValidator.validate_query(query)
+            if not query_result.is_valid:
+                logger.warning(f"Invalid query received: {query_result.error_message}")
+                return json.dumps({"error": f"Invalid query: {query_result.error_message}"})
+            
+            clean_query = query_result.cleaned_value
+            parts = clean_query.split()
+            
+            # Extract player name, stat type, and season
+            player_name, stat_type, season = self._parse_query_parts(parts)
+            
+            # Validate individual components
+            player_result = InputValidator.validate_player_name(player_name)
+            if not player_result.is_valid:
+                logger.warning(f"Invalid player name: {player_name}")
+                return json.dumps({"error": f"Invalid player name: {player_result.error_message}"})
+            
+            stat_result = InputValidator.validate_stat_type(stat_type)
+            if not stat_result.is_valid:
+                logger.warning(f"Invalid stat type: {stat_type}")
+                return json.dumps({"error": f"Invalid stat type: {stat_result.error_message}"})
+            
+            season_result = InputValidator.validate_season(season)
+            if not season_result.is_valid:
+                logger.warning(f"Invalid season: {season}")
+                return json.dumps({"error": f"Invalid season: {season_result.error_message}"})
+            
+            # Use cleaned values
+            clean_player_name = player_result.cleaned_value
+            clean_stat_type = stat_result.cleaned_value
+            clean_season = season_result.cleaned_value
+            
+            logger.info(f"Processing stats request for {clean_player_name} ({clean_stat_type}, {clean_season})")
+            
+            # Find player
+            player_info = _find_player_by_name(clean_player_name)
+            if not player_info:
+                logger.warning(f"Player not found: {clean_player_name}")
+                return json.dumps({"error": f"Player '{clean_player_name}' not found"})
+            
+            # Get stats with caching
+            stats = self._get_player_stats(player_info, clean_season)
+            
+            # Filter stats if specific type requested
+            result_stats = self._filter_stats(stats, clean_stat_type)
+            
+            # Validate response
+            response_data = {
+                "player": player_info['full_name'],
+                "season": clean_season,
+                "stats": result_stats
+            }
+            
+            validation_result = ResponseValidator.validate_player_stats(response_data)
+            if not validation_result.is_valid:
+                logger.error(f"Response validation failed: {validation_result.error_message}")
+                return json.dumps({"error": "Invalid response data"})
+            
+            # Log performance
+            duration = time.time() - start_time
+            log_performance(logger, "player_stats_query", duration, 
+                          player=player_info['full_name'], season=clean_season)
+            
+            return json.dumps(response_data)
+            
+        except ValidationError as e:
+            log_error_with_context(logger, e, {"query": query})
+            return json.dumps({"error": str(e)})
+        except Exception as e:
+            log_error_with_context(logger, e, {"query": query})
+            return json.dumps({"error": f"An unexpected error occurred: {str(e)}"})
+    
+    def _parse_query_parts(self, parts: list) -> tuple[str, str, str]:
+        """Parse query parts into player_name, stat_type, season"""
         player_name = parts[0]
         stat_type = "all"
         season = "2024-25"
         
-        # Parse for multi-word names like "LeBron James"
         if len(parts) > 1:
             # Check if second part is a stat type or season
             if parts[1] in ["assists", "points", "rebounds", "steals", "blocks", "ppg", "apg", "rpg"]:
@@ -88,76 +169,86 @@ class StatsTool(BaseTool):
                     elif parts[2] in ["2023-24", "2024-25", "2022-23"]:
                         season = parts[2]
         
-        # Find player
-        player_info = _find_player_by_name(player_name)
-        if not player_info:
-            return json.dumps({"error": f"Player '{player_name}' not found"})
-        
+        return player_name, stat_type, season
+    
+    def _get_player_stats(self, player_info: Dict, season: str) -> Dict:
+        """Get player statistics with caching and error handling"""
         player_id = player_info['id']
         cache_key = f"stats_{player_id}_{season}"
         
         # Check cache first
         cached_data = cache_get(cache_key)
         if cached_data:
-            stats = cached_data
-        else:
-            try:
-                # Get career stats
-                career_stats = playercareerstats.PlayerCareerStats(player_id=player_id)
-                df = career_stats.get_data_frames()[0]  # Season totals regular season
-                
-                # Find current season data
-                current_season_data = df[df['SEASON_ID'].str.contains(season, na=False)]
-                if current_season_data.empty:
-                    # If specific season not found, get the most recent
-                    current_season_data = df.iloc[[-1]]
-                
-                if current_season_data.empty:
-                    return json.dumps({"error": f"No stats found for {player_info['full_name']}"})
-                
-                season_stats = current_season_data.iloc[0]
-                
-                # Calculate per-game averages
-                games_played = season_stats.get('GP', 1)
-                if games_played == 0:
-                    games_played = 1
-                
-                stats = {
-                    "ppg": round(season_stats.get('PTS', 0) / games_played, 1),
-                    "apg": round(season_stats.get('AST', 0) / games_played, 1),
-                    "rpg": round(season_stats.get('REB', 0) / games_played, 1),
-                    "spg": round(season_stats.get('STL', 0) / games_played, 1),
-                    "bpg": round(season_stats.get('BLK', 0) / games_played, 1),
-                    "fg_pct": round(season_stats.get('FG_PCT', 0) * 100, 1) if season_stats.get('FG_PCT') else 0,
-                    "fg3_pct": round(season_stats.get('FG3_PCT', 0) * 100, 1) if season_stats.get('FG3_PCT') else 0,
-                    "ft_pct": round(season_stats.get('FT_PCT', 0) * 100, 1) if season_stats.get('FT_PCT') else 0,
-                    "games_played": int(games_played)
-                }
-                
-                cache_set(cache_key, stats)
-                
-            except Exception as e:
-                return json.dumps({"error": f"Failed to get stats for {player_info['full_name']}: {str(e)}"})
+            logger.debug(f"Cache hit for {player_info['full_name']} {season}")
+            return cached_data
         
-        # Filter by specific stat if requested
+        try:
+            api_start = time.time()
+            
+            # Get career stats
+            career_stats = playercareerstats.PlayerCareerStats(player_id=player_id)
+            df = career_stats.get_data_frames()[0]  # Season totals regular season
+            
+            api_duration = time.time() - api_start
+            log_api_call(logger, "playercareerstats", "GET", 200, api_duration, 
+                        player_id=player_id)
+            
+            # Find current season data
+            current_season_data = df[df['SEASON_ID'].str.contains(season, na=False)]
+            if current_season_data.empty:
+                # If specific season not found, get the most recent
+                current_season_data = df.iloc[[-1]]
+            
+            if current_season_data.empty:
+                raise ValueError(f"No stats found for {player_info['full_name']}")
+            
+            season_stats = current_season_data.iloc[0]
+            
+            # Calculate per-game averages
+            games_played = season_stats.get('GP', 1)
+            if games_played == 0:
+                games_played = 1
+            
+            stats = {
+                "ppg": round(season_stats.get('PTS', 0) / games_played, 1),
+                "apg": round(season_stats.get('AST', 0) / games_played, 1),
+                "rpg": round(season_stats.get('REB', 0) / games_played, 1),
+                "spg": round(season_stats.get('STL', 0) / games_played, 1),
+                "bpg": round(season_stats.get('BLK', 0) / games_played, 1),
+                "fg_pct": round(season_stats.get('FG_PCT', 0) * 100, 1) if season_stats.get('FG_PCT') else 0,
+                "fg3_pct": round(season_stats.get('FG3_PCT', 0) * 100, 1) if season_stats.get('FG3_PCT') else 0,
+                "ft_pct": round(season_stats.get('FT_PCT', 0) * 100, 1) if season_stats.get('FT_PCT') else 0,
+                "games_played": int(games_played)
+            }
+            
+            # Cache the results
+            cache_set(cache_key, stats)
+            logger.debug(f"Cached stats for {player_info['full_name']} {season}")
+            
+            return stats
+            
+        except Exception as e:
+            log_error_with_context(logger, e, {
+                "player_id": player_id, 
+                "player_name": player_info['full_name'],
+                "season": season
+            })
+            raise
+    
+    def _filter_stats(self, stats: Dict, stat_type: str) -> Dict:
+        """Filter stats based on requested type"""
         if stat_type in ["assists", "apg"]:
-            result_stats = {"apg": stats.get("apg", 0)}
+            return {"apg": stats.get("apg", 0)}
         elif stat_type in ["points", "ppg"]:
-            result_stats = {"ppg": stats.get("ppg", 0)}
+            return {"ppg": stats.get("ppg", 0)}
         elif stat_type in ["rebounds", "rpg"]:
-            result_stats = {"rpg": stats.get("rpg", 0)}
+            return {"rpg": stats.get("rpg", 0)}
         elif stat_type in ["steals", "spg"]:
-            result_stats = {"spg": stats.get("spg", 0)}
+            return {"spg": stats.get("spg", 0)}
         elif stat_type in ["blocks", "bpg"]:
-            result_stats = {"bpg": stats.get("bpg", 0)}
+            return {"bpg": stats.get("bpg", 0)}
         else:
-            result_stats = stats
-        
-        return json.dumps({
-            "player": player_info['full_name'],
-            "season": season,
-            "stats": result_stats
-        })
+            return stats
 
 
 class ScheduleTool(BaseTool):
