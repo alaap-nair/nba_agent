@@ -10,6 +10,7 @@ A LangChain-based assistant for checking NBA stats and schedules with enhanced u
 - **Advanced Features:** Shooting percentages (FG%, 3P%, FT%), team analytics, and more
 - Local caching of API requests for faster responses
 - Comprehensive test suite with Judgment Labs integration
+- **Agentic Planning Mode** with conversation memory
 
 ## Architecture
 
@@ -66,6 +67,9 @@ python launcher.py web
 # Terminal chat interface
 python launcher.py chat
 
+# Agentic planning chat
+python launcher.py plan
+
 # Run test suite
 python launcher.py tests all
 ```
@@ -74,6 +78,11 @@ python launcher.py tests all
 Run the interactive chat in your terminal:
 ```bash
 python apps/chat.py
+```
+
+Use the planning agent:
+```bash
+python apps/chat_planner.py
 ```
 
 Launch the enhanced web interface:
@@ -110,7 +119,8 @@ nba_agent/
 ├── apps/                   # Application interfaces
 │   ├── app_ux_improved.py # Enhanced web interface
 │   ├── app.py             # Original Streamlit app
-│   └── chat.py            # Terminal chat interface
+│   ├── chat.py            # Terminal chat interface
+│   └── chat_planner.py    # Agentic planning chat
 ├── scripts/               # Utility scripts
 │   ├── start_web.sh      # Web app launcher script
 │   └── activate_env.sh   # Environment activation
@@ -130,5 +140,6 @@ nba_agent/
 - **`src/tools.py`** - NBA stats and schedule tools
 - **`apps/app_ux_improved.py`** - Enhanced Streamlit interface
 - **`apps/chat.py`** - Terminal chat interface
+- **`apps/chat_planner.py`** - Planning chat interface
 - **`scripts/start_web.sh`** - Shell script to start web app
 

@@ -16,6 +16,7 @@ def main():
         print("  web       - Original Streamlit web interface")
         print("  web-ux    - Enhanced UX Streamlit interface")
         print("  chat      - Terminal chat interface")
+        print("  plan      - Agentic planning chat")
         print("  tests     - Run test suite")
         print("\nExample: python launcher.py web-ux")
         return
@@ -31,6 +32,9 @@ def main():
     elif app_name == "chat":
         print("🏀 Starting terminal chat interface...")
         subprocess.run([sys.executable, "apps/chat.py"])
+    elif app_name == "plan":
+        print("🏀 Starting planning chat interface...")
+        subprocess.run([sys.executable, "apps/chat_planner.py"])
     elif app_name == "tests":
         print("🏀 Running test suite...")
         if len(sys.argv) > 2:
