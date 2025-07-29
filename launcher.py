@@ -16,6 +16,7 @@ def main():
         print("  web       - Original Streamlit web interface")
         print("  web-ux    - Enhanced UX Streamlit interface")
         print("  chat      - Terminal chat interface")
+        print("  enhanced  - Enhanced chat with flexible query parsing")
         print("  plan      - Agentic planning chat")
         print("  tests     - Run test suite")
         print("\nExample: python launcher.py web-ux")
@@ -32,6 +33,9 @@ def main():
     elif app_name == "chat":
         print("🏀 Starting terminal chat interface...")
         subprocess.run([sys.executable, "apps/chat.py"])
+    elif app_name == "enhanced":
+        print("🏀 Starting enhanced chat with flexible query parsing...")
+        subprocess.run([sys.executable, "apps/enhanced_chat.py"])
     elif app_name == "plan":
         print("🏀 Starting planning chat interface...")
         subprocess.run([sys.executable, "apps/chat_planner.py"])
@@ -43,7 +47,7 @@ def main():
             subprocess.run([sys.executable, "run_judgment_tests.py", "--help"])
     else:
         print(f"❌ Unknown app: {app_name}")
-        print("Available: web, web-ux, chat, tests")
+        print("Available: web, web-ux, chat, enhanced, plan, tests")
 
 if __name__ == "__main__":
     main() 
