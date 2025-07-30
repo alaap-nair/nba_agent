@@ -47,7 +47,11 @@ class InputValidator:
         r'<script.*?>',     # XSS attempts
         r'javascript:',     # JavaScript injection
         r'[<>"\']',         # HTML/SQL injection characters
-        r'[;|\-\-]',        # SQL injection patterns
+        # Match SQL injection patterns like ';', '|', or '--' without blocking
+        # legitimate hyphenated inputs (e.g., seasons like 2024-25)
+        r';',
+        r'\|',
+        r'--',
         r'union\s+select',  # SQL injection
         r'drop\s+table',    # SQL injection
     ]
